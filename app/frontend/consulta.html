@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gabinete Parlamentar - Consultar Solicitações</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    .menu-publico {
+      display: flex;
+      gap: 0.5em;
+      background: #2d7dd2;
+      padding: 0.5em 1em;
+      align-items: center;
+      color: #fff;
+      margin-bottom: 2em;
+      border-radius: 0 0 8px 8px;
+    }
+    .menu-publico a {
+      text-decoration: none;
+    }
+    .menu-publico button {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1em;
+      margin-right: 1em;
+      cursor: pointer;
+      padding: 0.5em 1em;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .menu-publico button:hover, .menu-publico .ativo {
+      background: #175fa6;
+    }
+    .andamento-publico {
+      background: #f4f4f4;
+      border-radius: 4px;
+      padding: 6px 10px;
+      margin: 8px 0;
+      font-size: 0.95em;
+      color: #444;
+    }
+  </style>
+</head>
+<body>
+  <nav class="menu-publico">
+    <a href="index.html"><button type="button">Novo</button></a>
+    <a href="consulta.html"><button class="ativo" type="button">Consulta</button></a>
+  </nav>
+  <main class="container">
+    <h1>Consultar Solicitações</h1>
+
+    <form id="formConsulta">
+      <label for="contatoConsultaTipo">Forma de Contato:</label>
+      <select id="contatoConsultaTipo" name="contatoConsultaTipo" required>
+        <option value="" disabled selected>Selecione</option>
+        <option value="email">E-mail</option>
+        <option value="telefone">Telefone/WhatsApp</option>
+      </select>
+
+      <label for="contatoConsulta">Contato:</label>
+      <input
+        type="text"
+        id="contatoConsulta"
+        name="contatoConsulta"
+        placeholder="Selecione o tipo de contato"
+        required
+      />
+
+      <button type="submit">Consultar</button>
+    </form>
+
+    <section id="resultados"></section>
+  </main>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const formConsulta = document.getElementById("formConsulta");
+      const contatoTipoSelect = document.getElementById("contatoConsultaTipo");
+      const contatoInput = document.getElementById("contatoConsulta");
+      const resultadosDiv = document.getElementById("resultados");
+
+      contatoTipoSelect.addEventListener("change", () => {
+        if (contatoTipoSelect.value === "email") {
+          contatoInput.type = "email";
+          contatoInput.placeholder = "exemplo@dominio.com";
+          contatoInput.value = "";
+        } else if (contatoTipoSelect.value === "telefone") {
+          contatoInput.type = "tel";
+          contatoInput.placeholder = "(99) 99999-9999";
+          contatoInput.value = "";
+        } else {
+          contatoInput.type = "text";
+          contatoInput.placeholder = "Selecione o tipo de contato";
+          contatoInput.value = "";
+        }
+      });
+
+      formConsulta.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const tipo = document.getElementById("contatoConsultaTipo").value;
+        const contato = document.getElementById("contatoConsulta").value;
+
+        const url = `http://localhost:3000/api/solicitacoes?contato=${encodeURIComponent(contato)}`;
+
+        try {
+          const resp = await fetch(url);
+          if (!resp.ok) {
+            throw new Error("Erro ao consultar solicitações");
+          }
+          const data = await resp.json();
+
+          if (data.length === 0) {
+            resultadosDiv.innerHTML =
+              "<p>Nenhuma solicitação encontrada para este contato.</p>";
+          } else {
+            resultadosDiv.innerHTML = data
+              .map(
+                (item) => `
+              <div class="resultado">
+                <strong>Tipo:</strong> ${item.tipo}<br>
+                <strong>Status:</strong> ${item.status}<br>
+                <strong>Mensagem:</strong> ${item.mensagem}<br>
+                <strong>Andamento:</strong>
+                ${
+                  Array.isArray(item.andamento)
+                    ? item.andamento
+                        .map(
+                          (log) =>
+                            `<div class="andamento-publico">${log}</div>`
+                        )
+                        .join("")
+                    : "---"
+                }
+              </div>
+              <hr>
+            `
+              )
+              .join("");
+          }
+        } catch (err) {
+          resultadosDiv.innerHTML =
+            '<p style="color:red;">Erro ao consultar solicitações.</p>';
+        }
+      });
+    });
+  </script>
+</body>
+</html>

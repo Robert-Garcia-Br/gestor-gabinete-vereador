@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin - Login</title>
+  <link rel="stylesheet" href="./assets/css/style.css" />
+  <style>
+    #loginBox {
+      max-width: 350px;
+      margin: 80px auto;
+      padding: 30px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fafafa;
+      box-shadow: 0 2px 8px #0001;
+    }
+    #loginBox input {
+      width: 100%;
+      margin-bottom: 12px;
+      padding: 8px;
+      font-size: 1em;
+    }
+    #loginBox button {
+      width: 100%;
+      padding: 8px;
+      font-size: 1em;
+      background: #2d7dd2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #loginBox .erro {
+      color: #e74c3c;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    #usuarioLogado {
+      text-align: right;
+      margin: 10px 20px 0 0;
+      font-size: 1em;
+      color: #2d7dd2;
+      font-weight: bold;
+      display: none;
+    }
+    #alterarSenhaBox, #novoUsuarioBox {
+      max-width: 350px;
+      margin: 80px auto;
+      padding: 30px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fafafa;
+      box-shadow: 0 2px 8px #0001;
+      display: none;
+    }
+    #alterarSenhaBox input, #novoUsuarioBox input {
+      width: 100%;
+      margin-bottom: 12px;
+      padding: 8px;
+      font-size: 1em;
+    }
+    #alterarSenhaBox button, #novoUsuarioBox button {
+      width: 100%;
+      padding: 8px;
+      font-size: 1em;
+      background: #2d7dd2;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #alterarSenhaBox .erro, #novoUsuarioBox .erro {
+      color: #e74c3c;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="usuarioLogado"></div>
+  <div id="loginBox">
+    <h2>Login Administrativo</h2>
+    <div id="erroLogin" class="erro"></div>
+    <input type="text" id="usuario" placeholder="Usuário" autocomplete="username" />
+    <input type="password" id="senha" placeholder="Senha" autocomplete="current-password" />
+    <button onclick="fazerLogin()">Entrar</button>
+  </div>
+
+  <div id="alterarSenhaBox">
+    <h2>Alterar Senha do Admin</h2>
+    <div id="erroSenha" class="erro"></div>
+    <input type="password" id="novaSenha" placeholder="Nova senha" autocomplete="new-password" />
+    <input type="password" id="confirmaSenha" placeholder="Confirme a nova senha" autocomplete="new-password" />
+    <button onclick="alterarSenhaAdmin()">Salvar Nova Senha</button>
+  </div>
+
+  <div id="novoUsuarioBox">
+    <h2>Cadastrar Novo Usuário</h2>
+    <div id="erroNovoUsuario" class="erro"></div>
+    <input type="text" id="novoUsuario" placeholder="Novo usuário" autocomplete="off" />
+    <input type="password" id="novaSenhaUsuario" placeholder="Senha do novo usuário" autocomplete="new-password" />
+    <button onclick="cadastrarNovoUsuario()">Cadastrar</button>
+  </div>
+
+  <script>
+    // Busca usuários do sistema no localStorage
+    function getUsuarios() {
+      const usuarios = localStorage.getItem("usuariosSistema");
+      if (usuarios) return JSON.parse(usuarios);
+      // Inicializa com admin padrão se não existir
+      const padrao = { admin: "1234" };
+      localStorage.setItem("usuariosSistema", JSON.stringify(padrao));
+      return padrao;
+    }
+
+    // Exibe usuário logado se já estiver logado
+    if (localStorage.getItem("adminLogado") === "sim") {
+      const usuarioSalvo = localStorage.getItem("adminUsuario") || "admin";
+      document.getElementById("usuarioLogado").textContent = "Usuário logado: " + usuarioSalvo;
+      document.getElementById("usuarioLogado").style.display = "block";
+      window.location.href = "solicitacoes.html";
+    }
+
+    // Verifica se é o primeiro login do admin padrão
+    function isPrimeiroLoginAdmin() {
+      const usuarios = getUsuarios();
+      return usuarios["admin"] === "1234" && !localStorage.getItem("adminSenhaAlterada");
+    }
+
+    function fazerLogin() {
+      const usuario = document.getElementById("usuario").value.trim();
+      const senha = document.getElementById("senha").value;
+      const erro = document.getElementById("erroLogin");
+      const usuarios = getUsuarios();
+
+      if (usuarios[usuario] && usuarios[usuario] === senha) {
+        if (usuario === "admin" && senha === "1234" && isPrimeiroLoginAdmin()) {
+          // Exigir alteração de senha do admin
+          document.getElementById("loginBox").style.display = "none";
+          document.getElementById("alterarSenhaBox").style.display = "block";
+          return;
+        }
+        localStorage.setItem("adminLogado", "sim");
+        localStorage.setItem("adminUsuario", usuario);
+        document.getElementById("usuarioLogado").textContent = "Usuário logado: " + usuario;
+        document.getElementById("usuarioLogado").style.display = "block";
+        window.location.href = "solicitacoes.html";
+      } else {
+        erro.textContent = "Usuário ou senha inválidos.";
+      }
+    }
+
+    function alterarSenhaAdmin() {
+      const novaSenha = document.getElementById("novaSenha").value;
+      const confirmaSenha = document.getElementById("confirmaSenha").value;
+      const erroSenha = document.getElementById("erroSenha");
+
+      if (!novaSenha || !confirmaSenha) {
+        erroSenha.textContent = "Preencha todos os campos.";
+        return;
+      }
+      if (novaSenha === "1234") {
+        erroSenha.textContent = "A nova senha deve ser diferente da senha padrão.";
+        return;
+      }
+      if (novaSenha !== confirmaSenha) {
+        erroSenha.textContent = "As senhas não coincidem.";
+        return;
+      }
+      // Salva nova senha do admin
+      const usuarios = getUsuarios();
+      usuarios["admin"] = novaSenha;
+      localStorage.setItem("usuariosSistema", JSON.stringify(usuarios));
+      localStorage.setItem("adminSenhaAlterada", "sim");
+      document.getElementById("alterarSenhaBox").style.display = "none";
+      document.getElementById("novoUsuarioBox").style.display = "block";
+    }
+
+    function cadastrarNovoUsuario() {
+      const novoUsuario = document.getElementById("novoUsuario").value.trim();
+      const novaSenhaUsuario = document.getElementById("novaSenhaUsuario").value;
+      const erroNovoUsuario = document.getElementById("erroNovoUsuario");
+
+      if (!novoUsuario || !novaSenhaUsuario) {
+        erroNovoUsuario.textContent = "Preencha todos os campos.";
+        return;
+      }
+      const usuarios = getUsuarios();
+      if (usuarios[novoUsuario]) {
+        erroNovoUsuario.textContent = "Usuário já existe.";
+        return;
+      }
+      usuarios[novoUsuario] = novaSenhaUsuario;
+      localStorage.setItem("usuariosSistema", JSON.stringify(usuarios));
+      // Após cadastrar, faz logout do admin e exige novo login
+      localStorage.removeItem("adminLogado");
+      localStorage.removeItem("adminUsuario");
+      alert("Novo usuário cadastrado com sucesso! Faça login novamente.");
+      window.location.href = "admin.html";
+    }
+  </script>
+</body>
+</html>

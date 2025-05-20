@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Painel Administrativo</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <style>
+    .menu-admin {
+      display: flex;
+      gap: 0.5em;
+      background: #2d7dd2;
+      padding: 0.5em 1em;
+      align-items: center;
+      color: #fff;
+      margin-bottom: 2em;
+    }
+    .menu-admin button {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1em;
+      margin-right: 1em;
+      cursor: pointer;
+      padding: 0.5em 1em;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .menu-admin button:hover, .menu-admin .ativo {
+      background: #175fa6;
+    }
+    .menu-admin .sair {
+      margin-left: auto;
+      background: #e74c3c;
+      color: #fff;
+    }
+    .status-menu {
+      display: flex;
+      gap: 0.5em;
+      margin-bottom: 1em;
+    }
+    .status-menu button {
+      background: #eee;
+      border: 1px solid #ccc;
+      color: #333;
+      padding: 0.4em 1em;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s, color 0.2s;
+    }
+    .status-menu button.ativo {
+      background: #2d7dd2;
+      color: #fff;
+      border-color: #2d7dd2;
+    }
+    #usuarioLogado {
+      text-align: right;
+      margin: 10px 20px 0 0;
+      font-size: 1em;
+      color: #2d7dd2;
+      font-weight: bold;
+    }
+    .andamento-log {
+      background: #f4f4f4;
+      border-radius: 4px;
+      padding: 6px 10px;
+      margin: 8px 0;
+      font-size: 0.95em;
+      color: #444;
+    }
+    .btn-admin {
+      margin-right: 8px;
+      margin-top: 6px;
+      margin-bottom: 6px;
+      padding: 0.4em 1em;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      background: #2d7dd2;
+      color: #fff;
+      transition: background 0.2s;
+    }
+    .btn-admin:hover {
+      background: #175fa6;
+    }
+    .btn-encerrar {
+      background: #27ae60;
+    }
+    .btn-encerrar:hover {
+      background: #1e874a;
+    }
+  </style>
+</head>
+<body>
+  <div id="usuarioLogado"></div>
+  <div class="container">
+    <nav class="menu-admin">
+      <a href="config.html"><button type="button">Config</button></a>
+      <a href="solicitacoes.html"><button class="ativo" type="button">Solicitações</button></a>
+      <button class="sair" onclick="logout()" type="button">Sair</button>
+    </nav>
+    <h1>Painel Administrativo</h1>
+    <div class="status-menu" id="statusMenu">
+      <button type="button" class="ativo" onclick="selecionarStatus('Recebido')">Recebido</button>
+      <button type="button" onclick="selecionarStatus('Em análise')">Em análise</button>
+      <button type="button" onclick="selecionarStatus('Em andamento')">Em andamento</button>
+      <button type="button" onclick="selecionarStatus('Respondido')">Respondido</button>
+      <button type="button" onclick="selecionarStatus('')">Todos</button>
+    </div>
+    <div style="margin-bottom: 20px;">
+      <input type="text" id="busca" placeholder="Buscar por nome ou contato" oninput="carregarSolicitacoes()" style="margin-right:10px;"/>
+    </div>
+    <div id="listaSolicitacoes"></div>
+  </div>
+  <script>
+    // Protege acesso e exibe usuário logado
+    if (localStorage.getItem("adminLogado") !== "sim") {
+      window.location.href = "admin.html";
+    } else {
+      const usuarioSalvo = localStorage.getItem("adminUsuario") || "admin";
+      document.getElementById("usuarioLogado").textContent = "Usuário logado: " + usuarioSalvo;
+    }
+
+    function logout() {
+      localStorage.removeItem("adminLogado");
+      localStorage.removeItem("adminUsuario");
+      window.location.href = "admin.html";
+    }
+
+    // Status selecionado (padrão: Recebido)
+    let statusSelecionado = "Recebido";
+    let todasSolicitacoes = [];
+
+    function selecionarStatus(status) {
+      statusSelecionado = status;
+      // Atualiza botões
+      const botoes = document.querySelectorAll("#statusMenu button");
+      botoes.forEach(btn => {
+        if (
+          (status === "" && btn.textContent === "Todos") ||
+          btn.textContent === status
+        ) {
+          btn.classList.add("ativo");
+        } else {
+          btn.classList.remove("ativo");
+        }
+      });
+      carregarSolicitacoes();
+    }
+
+    function formatarDataHoraBR(date) {
+      return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR').slice(0,5);
+    }
+
+    function getUltimoAndamento(andamento) {
+      if (Array.isArray(andamento) && andamento.length > 0) {
+        return andamento[andamento.length - 1];
+      }
+      return "";
+    }
+
+    async function carregarSolicitacoes() {
+      try {
+        const res = await fetch("http://localhost:3000/admin/api/solicitacoes");
+        const dados = await res.json();
+        todasSolicitacoes = dados;
+
+        const busca = document.getElementById("busca").value.trim().toLowerCase();
+
+        let filtradas = dados;
+
+        if (statusSelecionado) {
+          filtradas = filtradas.filter(item => item.status === statusSelecionado);
+        }
+
+        if (busca) {
+          filtradas = filtradas.filter(item =>
+            (item.nome && item.nome.toLowerCase().includes(busca)) ||
+            (item.contato && item.contato.toLowerCase().includes(busca))
+          );
+        }
+
+        const container = document.getElementById("listaSolicitacoes");
+        container.innerHTML = "";
+
+        if (filtradas.length === 0) {
+          container.innerHTML = "<p>Nenhuma solicitação encontrada.</p>";
+          return;
+        }
+
+        filtradas.forEach((item) => {
+          let andamentoHtml = "";
+          if (Array.isArray(item.andamento)) {
+            andamentoHtml = item.andamento.map(log =>
+              `<div class="andamento-log">${log}</div>`
+            ).join('');
+          }
+          const isRecebido = item.status === "Recebido";
+          const isEmAnalise = item.status === "Em análise";
+          const isEmAndamento = item.status === "Em andamento";
+          const btns = [];
+
+          if (isRecebido) {
+            btns.push(`<button class="btn-admin" onclick="analisar(${item.id})">Analisar</button>`);
+          }
+          if (isEmAnalise) {
+            if (item.tipo === "Sugestão") {
+              btns.push(`<button class="btn-admin btn-encerrar" onclick="encerrar(${item.id})">Encerrar</button>`);
+            } else if (item.tipo === "Informação") {
+              btns.push(`<button class="btn-admin btn-encerrar" onclick="encerrar(${item.id})">Encerrar</button>`);
+            } else if (item.tipo === "Denúncia" && item.nome === "Anônimo") {
+              // Apenas botão encerrar para denúncia anônima em análise
+              btns.push(`<button class="btn-admin btn-encerrar" onclick="encerrar(${item.id})">Encerrar</button>`);
+            } else if (item.tipo === "Denúncia") {
+              // Para outras denúncias, mostrar encerrar e em andamento
+              btns.push(`<button class="btn-admin btn-encerrar" onclick="encerrar(${item.id})">Encerrar</button>`);
+              btns.push(`<button class="btn-admin" onclick="mudarParaEmAndamento(${item.id})">Mover para Em andamento</button>`);
+            } else if (item.tipo === "Solicitação") {
+              btns.push(`<button class="btn-admin btn-encerrar" onclick="encerrar(${item.id})">Encerrar</button>`);
+              btns.push(`<button class="btn-admin" onclick="mudarParaEmAndamento(${item.id})">Mover para Em andamento</button>`);
+            } else {
+              btns.push(`<button class="btn-admin btn-encerrar" onclick="encerrar(${item.id})">Encerrar</button>`);
+              btns.push(`<button class="btn-admin" onclick="atualizar(${item.id})">Atualizar</button>`);
+              btns.push(`<button class="btn-admin" onclick="mudarParaEmAndamento(${item.id})">Mover para Em andamento</button>`);
+            }
+          }
+          if (isEmAndamento) {
+            btns.push(`<button class="btn-admin btn-encerrar" onclick="encerrar(${item.id})">Encerrar</button>`);
+            btns.push(`<button class="btn-admin" onclick="atualizar(${item.id})">Atualizar</button>`);
+          }
+
+          const ultimoAndamento = getUltimoAndamento(item.andamento);
+
+          const div = document.createElement("div");
+          div.classList.add("solicitacao");
+          div.innerHTML = `
+            <p><strong>ID:</strong> ${item.id}</p>
+            <p><strong>Tipo:</strong> ${item.tipo}</p>
+            <p><strong>Nome:</strong> ${item.nome}</p>
+            <p><strong>Contato:</strong> ${item.contato || "N/A"}</p>
+            <p><strong>Mensagem:</strong> ${item.mensagem}</p>
+            ${andamentoHtml}
+            <label>Andamento:
+              <textarea data-id="${item.id}" data-campo="andamento">${ultimoAndamento}</textarea>
+            </label>
+            ${btns.join('')}
+            <hr />
+          `;
+          container.appendChild(div);
+        });
+      } catch (error) {
+        alert("Erro ao carregar solicitações.");
+        console.error(error);
+      }
+    }
+
+    async function atualizar(id) {
+      const item = todasSolicitacoes.find(s => s.id === id);
+      if (!item) return;
+
+      // Se o status for "Em andamento", pede atualização ao usuário
+      if (item.status === "Em andamento") {
+        const atualizacao = prompt("Informe a atualização para esta solicitação:");
+        if (!atualizacao || atualizacao.trim() === "") {
+          alert("A atualização é obrigatória.");
+          return;
+        }
+        const agora = new Date();
+        const dataHora = formatarDataHoraBR(agora);
+        const textoAndamento = `${dataHora} - Atualização: ${atualizacao}`;
+
+        let andamento = Array.isArray(item.andamento) ? [...item.andamento] : [];
+        andamento.push(textoAndamento);
+
+        try {
+          const res = await fetch(`http://localhost:3000/admin/api/solicitacoes/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              status: item.status,
+              andamento,
+              retorno: textoAndamento
+            }),
+          });
+
+          if (!res.ok) throw new Error("Erro ao atualizar");
+
+          alert("Solicitação atualizada com sucesso!");
+          carregarSolicitacoes();
+        } catch (err) {
+          alert("Falha ao atualizar.");
+          console.error(err);
+        }
+        return;
+      }
+
+      // Fluxo padrão para outros status
+      const textarea = document.querySelector(`textarea[data-id='${id}'][data-campo='andamento']`);
+      const novoAndamento = textarea.value.trim();
+      const status = item ? item.status : "";
+
+      let andamento = Array.isArray(item.andamento) ? [...item.andamento] : [];
+      if (novoAndamento && novoAndamento !== getUltimoAndamento(andamento)) {
+        andamento.push(novoAndamento);
+      }
+
+      try {
+        const res = await fetch(`http://localhost:3000/admin/api/solicitacoes/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status, andamento, retorno: getUltimoAndamento(andamento) }),
+        });
+
+        if (!res.ok) throw new Error("Erro ao atualizar");
+
+        alert("Solicitação atualizada com sucesso!");
+        carregarSolicitacoes();
+      } catch (err) {
+        alert("Falha ao atualizar.");
+        console.error(err);
+      }
+    }
+
+    async function analisar(id) {
+      const item = todasSolicitacoes.find(s => s.id === id);
+      if (!item) return;
+
+      // Monta log de andamento
+      const agora = new Date();
+      const dataHora = formatarDataHoraBR(agora);
+      const textoAndamento = `${dataHora} - Estamos analisando a demanda`;
+      const textoRetorno = `${dataHora} - Em analise pela equipe`;
+
+      // Atualiza andamento
+      let andamento = Array.isArray(item.andamento) ? [...item.andamento] : [];
+      andamento.push(textoAndamento);
+
+      try {
+        const res = await fetch(`http://localhost:3000/admin/api/solicitacoes/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "Em análise",
+            andamento,
+            retorno: textoRetorno
+          }),
+        });
+
+        if (!res.ok) throw new Error("Erro ao atualizar para Em análise");
+
+        alert("Solicitação marcada como 'Em análise'.");
+
+        // Atualiza todos os filtros (recarrega todos os status)
+        document.querySelectorAll("#statusMenu button").forEach(btn => btn.classList.remove("ativo"));
+        document.querySelector("#statusMenu button:last-child").classList.add("ativo");
+        statusSelecionado = "";
+        carregarSolicitacoes();
+      } catch (err) {
+        alert("Falha ao atualizar.");
+        console.error(err);
+      }
+    }
+
+    async function mudarParaEmAndamento(id) {
+      const item = todasSolicitacoes.find(s => s.id === id);
+      if (!item) return;
+
+      const agora = new Date();
+      const dataHora = formatarDataHoraBR(agora);
+
+      let textoAndamento = `${dataHora} - Solicitação em andamento`;
+      let retorno = textoAndamento;
+
+      // Se for denúncia em análise, texto especial
+      if (item.tipo === "Denúncia" && item.status === "Em análise") {
+        textoAndamento = `${dataHora} - Estamos averiguando sua denúncia`;
+        retorno = textoAndamento;
+      }
+      // Se for solicitação em análise, texto especial
+      else if (item.tipo === "Solicitação" && item.status === "Em análise") {
+        textoAndamento = `${dataHora} - Aguardando manifestação do órgão competente`;
+        retorno = textoAndamento;
+      }
+
+      let andamento = Array.isArray(item.andamento) ? [...item.andamento] : [];
+      andamento.push(textoAndamento);
+
+      try {
+        const res = await fetch(`http://localhost:3000/admin/api/solicitacoes/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "Em andamento",
+            andamento,
+            retorno
+          }),
+        });
+
+        if (!res.ok) throw new Error("Erro ao mover para Em andamento");
+
+        alert("Solicitação movida para 'Em andamento'.");
+        carregarSolicitacoes();
+      } catch (err) {
+        alert("Falha ao mover para Em andamento.");
+        console.error(err);
+      }
+    }
+
+    async function encerrar(id) {
+      const item = todasSolicitacoes.find(s => s.id === id);
+      if (!item) return;
+
+      let motivo = "";
+
+      // Se o status for "Em andamento", pede resposta ao usuário
+      if (item.status === "Em andamento") {
+        motivo = prompt("Informe a resposta para o solicitante:");
+        if (!motivo || motivo.trim() === "") {
+          alert("A resposta é obrigatória.");
+          return;
+        }
+      } else if (item.tipo === "Sugestão") {
+        motivo = "Agradecemos sua sugestão";
+      } else if (item.tipo === "Informação") {
+        motivo = prompt("Informe a resposta para o solicitante:");
+        if (!motivo || motivo.trim() === "") {
+          alert("A resposta é obrigatória.");
+          return;
+        }
+      } else if (item.tipo === "Denúncia" && item.status === "Em análise" && item.nome === "Anônimo") {
+        motivo = "Denúncia averiguada";
+      } else {
+        motivo = prompt("Informe o motivo do encerramento:");
+        if (!motivo || motivo.trim() === "") {
+          alert("Motivo do encerramento é obrigatório.");
+          return;
+        }
+      }
+
+      const agora = new Date();
+      const dataHora = formatarDataHoraBR(agora);
+      const textoAndamento = `${dataHora} - Solicitação encerrada. Motivo: ${motivo}`;
+      const textoRetorno = `${dataHora} - Solicitação encerrada`;
+
+      let andamento = Array.isArray(item.andamento) ? [...item.andamento] : [];
+      andamento.push(textoAndamento);
+
+      try {
+        const res = await fetch(`http://localhost:3000/admin/api/solicitacoes/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "Respondido",
+            andamento,
+            retorno: textoRetorno
+          }),
+        });
+
+        if (!res.ok) throw new Error("Erro ao encerrar solicitação");
+
+        alert("Solicitação encerrada com sucesso!");
+        carregarSolicitacoes();
+      } catch (err) {
+        alert("Falha ao encerrar.");
+        console.error(err);
+      }
+    }
+
+    // Carrega solicitações ao abrir a página
+    window.onload = carregarSolicitacoes;
+  </script>
+</body>
+</html>

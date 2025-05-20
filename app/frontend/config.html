@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin - Configurações</title>
+  <link rel="stylesheet" href="./assets/css/style.css" />
+  <style>
+    .menu-admin {
+      display: flex;
+      gap: 0.5em;
+      background: #2d7dd2;
+      padding: 0.5em 1em;
+      align-items: center;
+      color: #fff;
+      margin-bottom: 2em;
+    }
+    .menu-admin button {
+      background: none;
+      border: none;
+      color: #fff;
+      font-size: 1em;
+      margin-right: 1em;
+      cursor: pointer;
+      padding: 0.5em 1em;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .menu-admin button:hover, .menu-admin .ativo {
+      background: #175fa6;
+    }
+    .menu-admin .sair {
+      margin-left: auto;
+      background: #e74c3c;
+      color: #fff;
+    }
+    #usuarioLogado {
+      text-align: right;
+      margin: 10px 20px 0 0;
+      font-size: 1em;
+      color: #2d7dd2;
+      font-weight: bold;
+    }
+    .config-section {
+      margin-bottom: 2em;
+      padding: 1em;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      background: #fafbfc;
+      max-width: 400px;
+    }
+    .config-section label {
+      display: block;
+      margin-top: 10px;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    .config-section input {
+      width: 100%;
+      padding: 6px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+    .config-section button {
+      background: #2d7dd2;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 16px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .config-section button.remover {
+      background: #e74c3c;
+      margin-left: 10px;
+    }
+    .config-section ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .msg {
+      color: green;
+      margin-bottom: 10px;
+    }
+    .erro {
+      color: #e74c3c;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="usuarioLogado"></div>
+  <div class="container">
+    <nav class="menu-admin">
+      <a href="config.html"><button class="ativo" type="button">Config</button></a>
+      <a href="solicitacoes.html"><button type="button">Solicitações</button></a>
+      <button class="sair" onclick="logout()" type="button">Sair</button>
+    </nav>
+    <div id="configuracoes">
+      <h2>Configurações</h2>
+
+      <!-- Alterar senha -->
+      <div class="config-section">
+        <h3>Alterar senha</h3>
+        <div id="msgSenha" class="msg"></div>
+        <div id="erroSenha" class="erro"></div>
+        <label for="senhaAtual">Senha atual</label>
+        <input type="password" id="senhaAtual" autocomplete="current-password" />
+        <label for="novaSenha">Nova senha</label>
+        <input type="password" id="novaSenha" autocomplete="new-password" />
+        <button onclick="alterarSenha()">Alterar senha</button>
+      </div>
+
+      <!-- Novo usuário -->
+      <div class="config-section">
+        <h3>Criar novo usuário</h3>
+        <div id="msgNovoUsuario" class="msg"></div>
+        <div id="erroNovoUsuario" class="erro"></div>
+        <label for="nomeNovoUsuario">Nome</label>
+        <input type="text" id="nomeNovoUsuario" autocomplete="off" />
+        <label for="novoUsuario">Usuário</label>
+        <input type="text" id="novoUsuario" autocomplete="username" />
+        <label for="novaSenhaUsuario">Senha</label>
+        <input type="password" id="novaSenhaUsuario" autocomplete="new-password" />
+        <button onclick="criarUsuario()">Criar usuário</button>
+      </div>
+
+      <!-- Remover usuário -->
+      <div class="config-section">
+        <h3>Remover usuário</h3>
+        <div id="msgRemoverUsuario" class="msg"></div>
+        <div id="erroRemoverUsuario" class="erro"></div>
+        <ul id="listaUsuarios"></ul>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Protege acesso e exibe usuário logado
+    if (localStorage.getItem("adminLogado") !== "sim") {
+      window.location.href = "admin.html";
+    } else {
+      const usuarioSalvo = localStorage.getItem("adminUsuario") || "admin";
+      document.getElementById("usuarioLogado").textContent = "Usuário logado: " + usuarioSalvo;
+    }
+
+    function logout() {
+      localStorage.removeItem("adminLogado");
+      localStorage.removeItem("adminUsuario");
+      window.location.href = "admin.html";
+    }
+
+    // --- Gerenciamento de usuários no localStorage ---
+    function getUsuarios() {
+      // Estrutura: { usuario: senha }
+      const usuarios = localStorage.getItem("usuariosSistema");
+      if (usuarios) return JSON.parse(usuarios);
+      // Inicializa com admin padrão se não existir
+      const padrao = { admin: "1234" };
+      localStorage.setItem("usuariosSistema", JSON.stringify(padrao));
+      return padrao;
+    }
+
+    function setUsuarios(obj) {
+      localStorage.setItem("usuariosSistema", JSON.stringify(obj));
+    }
+
+    // --- Alterar senha ---
+    function alterarSenha() {
+      const usuarios = getUsuarios();
+      const usuarioAtual = localStorage.getItem("adminUsuario") || "admin";
+      const senhaAtual = document.getElementById("senhaAtual").value;
+      const novaSenha = document.getElementById("novaSenha").value;
+      const msg = document.getElementById("msgSenha");
+      const erro = document.getElementById("erroSenha");
+      msg.textContent = "";
+      erro.textContent = "";
+
+      if (!usuarios[usuarioAtual]) {
+        erro.textContent = "Usuário não encontrado.";
+        return;
+      }
+      if (usuarios[usuarioAtual] !== senhaAtual) {
+        erro.textContent = "Senha atual incorreta.";
+        return;
+      }
+      if (!novaSenha) {
+        erro.textContent = "Informe a nova senha.";
+        return;
+      }
+      usuarios[usuarioAtual] = novaSenha;
+      setUsuarios(usuarios);
+      msg.textContent = "Senha alterada com sucesso!";
+      document.getElementById("senhaAtual").value = "";
+      document.getElementById("novaSenha").value = "";
+    }
+
+    // --- Criar novo usuário ---
+    function criarUsuario() {
+      const usuarios = getUsuarios();
+      const novoUsuario = document.getElementById("novoUsuario").value.trim();
+      const novaSenhaUsuario = document.getElementById("novaSenhaUsuario").value;
+      const nomeNovoUsuario = document.getElementById("nomeNovoUsuario").value.trim();
+      const msg = document.getElementById("msgNovoUsuario");
+      const erro = document.getElementById("erroNovoUsuario");
+      msg.textContent = "";
+      erro.textContent = "";
+
+      if (!nomeNovoUsuario || !novoUsuario || !novaSenhaUsuario) {
+        erro.textContent = "Preencha nome, usuário e senha.";
+        return;
+      }
+      if (usuarios[novoUsuario]) {
+        erro.textContent = "Usuário já existe.";
+        return;
+      }
+      // Salva o nome junto ao usuário
+      usuarios[novoUsuario] = { senha: novaSenhaUsuario, nome: nomeNovoUsuario };
+      setUsuarios(usuarios);
+      msg.textContent = "Usuário criado com sucesso!";
+      document.getElementById("nomeNovoUsuario").value = "";
+      document.getElementById("novoUsuario").value = "";
+      document.getElementById("novaSenhaUsuario").value = "";
+      listarUsuarios();
+    }
+
+    // --- Remover usuário ---
+    function removerUsuario(usuario) {
+      const usuarios = getUsuarios();
+      const usuarioAtual = localStorage.getItem("adminUsuario") || "admin";
+      const msg = document.getElementById("msgRemoverUsuario");
+      const erro = document.getElementById("erroRemoverUsuario");
+      msg.textContent = "";
+      erro.textContent = "";
+
+      if (usuario === usuarioAtual) {
+        erro.textContent = "Não é possível remover o usuário logado.";
+        return;
+      }
+      if (!confirm(`Deseja remover o usuário "${usuario}"?`)) return;
+      delete usuarios[usuario];
+      setUsuarios(usuarios);
+      msg.textContent = "Usuário removido!";
+      listarUsuarios();
+    }
+
+    // Atualize listarUsuarios para mostrar nome se existir
+    function listarUsuarios() {
+      const usuarios = getUsuarios();
+      const usuarioAtual = localStorage.getItem("adminUsuario") || "admin";
+      const ul = document.getElementById("listaUsuarios");
+      ul.innerHTML = "";
+      Object.keys(usuarios).forEach(usuario => {
+        let nome = "";
+        if (typeof usuarios[usuario] === "object" && usuarios[usuario].nome) {
+          nome = ` (${usuarios[usuario].nome})`;
+        }
+        const li = document.createElement("li");
+        li.textContent = usuario + nome;
+        if (usuario !== usuarioAtual) {
+          const btn = document.createElement("button");
+          btn.textContent = "Remover";
+          btn.className = "remover";
+          btn.onclick = () => removerUsuario(usuario);
+          li.appendChild(btn);
+        } else {
+          li.innerHTML += " (logado)";
+        }
+        ul.appendChild(li);
+      });
+    }
+
+    // --- Inicialização ---
+    listarUsuarios();
+  </script>
+</body>
+</html>
